@@ -1,4 +1,4 @@
-package day01
+package advent
 
 object Day01 {
 

@@ -1,4 +1,4 @@
-package day01
+package advent
 
 import org.junit.Assert
 import org.junit.Test
