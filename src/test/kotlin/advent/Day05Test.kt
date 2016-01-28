@@ -60,7 +60,7 @@ class Day05Test {
 
     @Test
     fun answer2() {
-        Assert.assertEquals("my answer", 236, Day05.inputStrings.filter { Day05.isNicePart2(it) }.size)
+        Assert.assertEquals("my answer", 51, Day05.inputStrings.filter { Day05.isNicePart2(it) }.size)
 
     }
 }
