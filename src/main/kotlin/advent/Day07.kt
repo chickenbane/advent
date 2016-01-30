@@ -102,15 +102,15 @@ In little Bobby's kit's instructions booklet (provided as your puzzle input), wh
         private val opMap = HashMap<String, BitOp>(signals.size)
 
         init {
-            val opsRemaining = signals.toArrayList()
-            while (opsRemaining.isNotEmpty()) {
+            val signalsRemaining = signals.toArrayList()
+            while (signalsRemaining.isNotEmpty()) {
                 //println("remaining signals left to process = ${opsRemaining.size}")
-                val ops = opsRemaining.toArrayList()
-                opsRemaining.clear()
-                for (opStr in ops) {
-                    val pair = parseOpStr(opStr)
+                val ops = signalsRemaining.toArrayList()
+                signalsRemaining.clear()
+                for (signal in ops) {
+                    val pair = parseSignal(signal)
                     if (pair == null) {
-                        opsRemaining.add(opStr)
+                        signalsRemaining.add(signal)
                     } else {
                         val (str, op) = pair
 
@@ -131,26 +131,38 @@ In little Bobby's kit's instructions booklet (provided as your puzzle input), wh
             Collections.unmodifiableMap(opMap)
         }
 
+        // signal:
         //        123 -> x
         //        x AND y -> d
         //        x OR y -> e
         //        x LSHIFT 2 -> f
         //        y RSHIFT 2 -> g
         //        NOT y -> i
-        private fun parseOpStr(opStr: String): Pair<String, BitOp>? {
-            val opAndName = opStr.split("->")
-            require(opAndName.size == 2)
-            val name = opAndName[1].trim()
-            val op = parseOp(opAndName[0]) ?: return null
+
+        // gets the wire name and BitOp, or null if refers to wire not yet in circuit
+        private fun parseSignal(signal: String): Pair<String, BitOp>? {
+            val opStrAndName = signal.split("->")
+            require(opStrAndName.size == 2)
+            val name = opStrAndName[1].trim()
+            val op = parseOp(opStrAndName[0]) ?: return null
             return name to op
         }
 
+
+        // return the BitOp on the left side of the signal
+        // opStr:
+        //        123
+        //        x AND y
+        //        x OR y
+        //        x LSHIFT 2
+        //        y RSHIFT 2
+        //        NOT y
         private fun parseOp(opStr: String): BitOp? = when {
             // can pass class constructors as functions?
-            opStr.contains("LSHIFT") -> maybeBitOp(opStr, "LSHIFT") { x, y -> BitOp.Lshift(x, y) }
-            opStr.contains("RSHIFT") -> maybeBitOp(opStr, "RSHIFT") { x, y -> BitOp.Rshift(x, y) }
-            opStr.contains("AND") -> maybeBitOp(opStr, "AND") { x, y -> BitOp.And(x, y) }
-            opStr.contains("OR") -> maybeBitOp(opStr, "OR") { x, y -> BitOp.Or(x, y) }
+            opStr.contains("LSHIFT") -> comboOp(opStr, "LSHIFT") { x, y -> BitOp.Lshift(x, y) }
+            opStr.contains("RSHIFT") -> comboOp(opStr, "RSHIFT") { x, y -> BitOp.Rshift(x, y) }
+            opStr.contains("AND") -> comboOp(opStr, "AND") { x, y -> BitOp.And(x, y) }
+            opStr.contains("OR") -> comboOp(opStr, "OR") { x, y -> BitOp.Or(x, y) }
             opStr.contains("NOT") -> {
                 val xList = opStr.split("NOT")
                 // FYI: "NOT x".split("NOT") returns [, x]
@@ -161,24 +173,19 @@ In little Bobby's kit's instructions booklet (provided as your puzzle input), wh
             else -> str2Op(opStr)
         }
 
-
-        private fun maybeBitOp(opStr: String, split: String, construct: (BitOp, BitOp) -> BitOp): BitOp? {
-            val pair = parse2(opStr, split) ?: return null
-            val (x, y) = pair
-            return construct(x, y)
-        }
-
-        private fun parse2(str: String, split: String): Pair<BitOp, BitOp>? {
-            val xAndY = str.split(split)
+        // returns one of the "combo" BitOps which have two BitOps nested, or null if either not yet in circuit
+        private fun comboOp(opStr: String, split: String, construct: (BitOp, BitOp) -> BitOp): BitOp? {
+            val xAndY = opStr.split(split)
             require(xAndY.size == 2)
             val x = str2Op(xAndY[0])
             val y = str2Op(xAndY[1])
             if (x == null || y == null) {
                 return null
             }
-            return x to y
+            return construct(x, y)
         }
 
+        // returns either a Const or the BitOp referenced, or null if BitOp not yet in circuit
         private fun str2Op(str: String): BitOp? {
             val trimmed = str.trim()
             if (trimmed.toCharArray().all { it.isDigit() }) {
