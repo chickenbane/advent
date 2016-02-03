@@ -37,9 +37,7 @@ class Day10Test {
     @Test
     fun answer2() {
         var next = "1321131112"
-        var count = 0
-        while (count < 50) {
-            count += 1
+        for (i in 1..50) {
             next = Day10.nextNum(next)
         }
         Assert.assertEquals("my answer", 6989950, next.length)
