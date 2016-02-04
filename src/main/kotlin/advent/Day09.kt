@@ -99,8 +99,7 @@ indicating that this is the last permutation.
             // city1     city2    dist
             val list = distStr.split(" ")
             require(list.size == 5)
-            require(list[1] == "to")
-            require(list[3] == "=")
+            require(list[1] == "to" && list[3] == "=")
             val city1 = list[0]
             val city2 = list[2]
             val dist = list[4].toInt()
@@ -122,24 +121,6 @@ indicating that this is the last permutation.
             val again = nextLexPermutation(cityIntArray)
         } while (again)
         return Collections.unmodifiableSet(set)
-    }
-
-    fun shortestRoute(distMap: Map<String, Map<String, Int>>): Int {
-        val routes = routes(distMap.keys)
-        var shortest = -1
-        for (route in routes) {
-            var dist = 0
-            for (i in 0..route.lastIndex - 1) {
-                val city1 = route[i]
-                val city2 = route[i + 1]
-                dist += distMap[city1]!![city2]!!
-            }
-            if (shortest == -1 || dist < shortest) {
-                println("route=$route dist=$dist")
-                shortest = dist
-            }
-        }
-        return shortest
     }
 
     class Salesman(val dists: List<String>) {

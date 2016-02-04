@@ -32,8 +32,6 @@ Dublin to Belfast = 141
         println("my map = $map")
         val routes = Day09.routes(map.keys)
         println("my routes = $routes")
-        val shortest = Day09.shortestRoute(map)
-        Assert.assertEquals("605 is shortest", 605, shortest)
 
         val salesman = Day09.Salesman(inputLines)
         Assert.assertEquals("605 is shortest", 605, salesman.shortest)
