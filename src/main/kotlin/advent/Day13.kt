@@ -63,7 +63,7 @@ What is the total change in happiness for the optimal seating arrangement of the
             val map = HashMap<String, HashMap<String, Int>>()
             for (inStr in input) {
                 val d: GuestDelta = parseDelta(inStr)
-                map.getOrPut(d.guest) { HashMap<String, Int>() }.put(d.target, d.happiness)
+                map.getOrPut(d.guest) { HashMap<String, Int>() }[d.target] = d.happiness
             }
             return map
         }
