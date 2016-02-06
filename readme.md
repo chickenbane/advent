@@ -10,4 +10,6 @@
 
 12 parsing json, sealed classes back
 
-13 another permutation question
+13 another permutation question. open class override lazy
+
+14 counting by seconds, maxBy filterValues
