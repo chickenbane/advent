@@ -26,6 +26,13 @@ What is the sum of all numbers in the document?
     """
     val input: String by lazy { File("src/main/resources/input12.txt").readText() }
 
+    val jsonChars = Regex("[{},:\"\\[\\]]")
+    val words = Regex("[a-zA-Z]+")
+
+    fun findNumbers(input: String): List<Int> {
+        return input.replace(jsonChars, " ").replace(words, " ").split(" ").filter { it.isNotBlank() }.map { it.toInt() }
+    }
+
     private val part2 = """
     --- Part Two ---
 
@@ -40,6 +47,8 @@ Ignore any object (and all of its children) which has any property with the valu
 
     """
 
+    // The thing I learned about parsing: tons of off by one errors!
+    // start and end are the indexes of ", {}, []
     sealed class JsonElement(val start: Int, val end: Int) {
         class JsonArray(start: Int, end: Int, val list: List<JsonElement>) : JsonElement(start, end)
         class JsonObject(start: Int, end: Int, val map: Map<String, JsonElement>) : JsonElement(start, end)
@@ -66,6 +75,7 @@ Ignore any object (and all of its children) which has any property with the valu
             else -> parseNum(input, idx)
         }
     }
+
 
     // assuming string starts at quote char and ends at next quote char
     fun parseString(input: String, start: Int): JsonElement.JsonString {
@@ -109,7 +119,7 @@ Ignore any object (and all of its children) which has any property with the valu
         do {
             val char = input[elemIdx]
             when (char) {
-                ',' -> elemIdx += 1 // kinda buggy since you can have [,,,,]
+                ',' -> elemIdx += 1 // kinda buggy
                 '}' -> return JsonElement.JsonObject(start, elemIdx+1, map)
                 '"' ->  {
                     val keyStart = elemIdx + 1
@@ -126,5 +136,28 @@ Ignore any object (and all of its children) which has any property with the valu
             }
         } while (elemIdx <= input.lastIndex)
         throw IllegalStateException("no end of object")
+    }
+
+    fun part1(json: JsonElement): Int {
+        return when (json) {
+            is JsonElement.JsonString -> 0
+            is JsonElement.JsonNum -> json.num
+            is JsonElement.JsonArray -> json.list.map { part1(it) }.sum()
+            is JsonElement.JsonObject -> json.map.map { part1(it.value) }.sum()
+        }
+    }
+
+    fun part2(json: JsonElement): Int {
+        return when (json) {
+            is JsonElement.JsonString -> 0
+            is JsonElement.JsonNum -> json.num
+            is JsonElement.JsonArray -> json.list.map { part2(it) }.sum()
+            is JsonElement.JsonObject -> part2obj(json)
+        }
+    }
+
+    private fun part2obj(json: JsonElement.JsonObject): Int {
+        val hasRed = json.map.values.filter { it is JsonElement.JsonString && it.str == "red" }.isNotEmpty()
+        return if (hasRed) 0 else json.map.map { part2(it.value) }.sum()
     }
 }
