@@ -88,7 +88,7 @@ For example:
         }
         val santaHouses = parseElfRadio(santaMoves.joinToString(separator = ""))
         val roboHouses = parseElfRadio(roboMoves.joinToString(separator = ""))
-        val bothHouses = santaHouses.toArrayList()
+        val bothHouses = santaHouses.toCollection(arrayListOf<House>())
         bothHouses.addAll(roboHouses)
         return bothHouses.toSet().size
     }

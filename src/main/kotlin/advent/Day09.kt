@@ -112,7 +112,7 @@ indicating that this is the last permutation.
     }
 
     fun routes(cities: Set<String>): Set<List<String>> {
-        val cityList = cities.toArrayList()
+        val cityList = cities.toCollection(arrayListOf<String>())
         val cityIntArray = IntArray(cityList.size) { it }
         val set = HashSet<List<String>>()
         do {

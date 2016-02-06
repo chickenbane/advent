@@ -102,10 +102,10 @@ In little Bobby's kit's instructions booklet (provided as your puzzle input), wh
         private val opMap = HashMap<String, BitOp>(signals.size)
 
         init {
-            val signalsRemaining = signals.toArrayList()
+            val signalsRemaining = signals.toCollection(arrayListOf<String>())
             while (signalsRemaining.isNotEmpty()) {
                 //println("remaining signals left to process = ${opsRemaining.size}")
-                val ops = signalsRemaining.toArrayList()
+                val ops = signalsRemaining.toCollection(arrayListOf<String>())
                 signalsRemaining.clear()
                 for (signal in ops) {
                     val pair = parseSignal(signal)

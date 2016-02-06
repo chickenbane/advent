@@ -30,7 +30,7 @@ How many strings are nice?
     private val badStrings: Set<String> = setOf("ab", "cd", "pq", "xy")
 
     fun isNice(input: String): Boolean {
-        val inputList = input.toArrayList()
+        val inputList = input.toCollection(arrayListOf<Char>())
         val inputVowels: List<Char> = inputList.filter { vowels.contains(it) }
         val hasVowels = inputVowels.size >= 3
 
@@ -84,7 +84,7 @@ How many strings are nice under these new rules?
     """
 
     fun hasTwoTwice(input: String): Boolean {
-        val inputList = input.toArrayList()
+        val inputList = input.toCollection(arrayListOf<Char>())
         for (i in 0..(inputList.size-2)) { // all but last index
             val check = "" + inputList[i] + inputList[i+1]
             val checkNums = setOf(i, i+1)
@@ -100,7 +100,7 @@ How many strings are nice under these new rules?
     }
 
     fun hasTwoWithMid(input: String): Boolean {
-        val inputList = input.toArrayList()
+        val inputList = input.toCollection(arrayListOf<Char>())
         for (i in 0..(inputList.size-3)) { // all but last index
             if (inputList[i] == inputList[i+2]) {
                 return true
