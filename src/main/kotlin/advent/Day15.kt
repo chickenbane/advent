@@ -1,5 +1,6 @@
 package advent
 
+import java.io.File
 import java.util.*
 
 /**
@@ -43,43 +44,31 @@ Given the ingredients in your kitchen and their properties, what is the total sc
                           val durability: Int,
                           val flavor: Int,
                           val texture: Int,
-                          val calories: Int,
-                          val spoons: Int = 1) {
-        fun teaspoons(spoons: Int): Ingredient = Ingredient(
-                name = name,
-                capacity = spoons * capacity,
-                durability = spoons * durability,
-                flavor = spoons * flavor,
-                texture = spoons * texture,
-                calories = calories,
-                spoons = spoons)
-    }
+                          val calories: Int)
 
-    class ComboIterator(val total: Int, val buckets: Int) : Iterator<IntArray> {
-        val array = IntArray(buckets)
+    val TotalSpoons = 100
 
-        init {
-            require (buckets > 1)
+    fun cookieScore(ingredients: List<Ingredient>, spoons: IntArray): Long {
+        require (spoons.size == ingredients.size)
+        require (spoons.all { it > 0 } && spoons.sum() == TotalSpoons)
+
+        var capacity = 0
+        var durability = 0
+        var flavor = 0
+        var texture = 0
+
+        for ((idx, ing) in ingredients.withIndex()) {
+            val ingSpoons = spoons[idx]
+            capacity += (ing.capacity * ingSpoons)
+            durability += (ing.durability * ingSpoons)
+            flavor += (ing.flavor * ingSpoons)
+            texture += (ing.texture * ingSpoons)
         }
 
-        override fun next(): IntArray {
-            // do stuff
-            return array
-        }
+        val scores = listOf(capacity, durability, flavor, texture)
+        val noNegs = scores.map { Math.max(0, it) }
 
-        override fun hasNext(): Boolean {
-            throw UnsupportedOperationException()
-        }
-
-    }
-
-    fun cookieScore(ingredients: List<Ingredient>): Long {
-
-        val capacity = Math.max(0, ingredients.fold(0L) { acc, n -> acc + n.capacity })
-        val durability = Math.max(0, ingredients.fold(0L) { acc, n -> acc + n.durability })
-        val flavor = Math.max(0, ingredients.fold(0L) { acc, n -> acc + n.flavor })
-        val texture = Math.max(0, ingredients.fold(0L) { acc, n -> acc + n.texture })
-        return capacity * durability * flavor * texture
+        return noNegs.fold(1L) { acc, n -> acc * n }
     }
 
     fun parseLine(line: String): Ingredient {
@@ -95,30 +84,92 @@ Given the ingredients in your kitchen and their properties, what is the total sc
         return Ingredient(name, cap, dur, fla, text, cal)
     }
 
-    fun distribute(total: Int, buckets: Int): Set<Set<Int>> {
-        val allSets = HashSet<Set<Int>>()
-        for (b in 1..buckets) {
-            //for (a in )
-        }
-        return allSets
-    }
+    val input: List<String> by lazy { File("src/main/resources/input15.txt").readLines() }
 
-    fun distribute100(ingredients: List<Ingredient>, prev: Map<Ingredient, Int> = emptyMap()): Map<Ingredient, Int> {
-        if (ingredients.isEmpty()) {
-            return prev
-        }
-        require(ingredients.all { it !in prev })
-        val remaining = 100 - prev.values.sum()
-        require(remaining > 0)
-        var max = 0
-        var maxMap = emptyMap<Ingredient, Int>()
-        for (i in ingredients) {
-            for (amt in (0..remaining)) {
+    val puzzleIngredients: List<Ingredient> by lazy { input.map { parseLine(it) } }
 
+    class ComboIterator(val total: Int, val buckets: Int) : Iterator<IntArray> {
+        // IntArray "view" returned by next()
+        // the state of the array is determined by the LinkedList bars, this IntArray is for the consumer
+        val array = IntArray(buckets)
+
+        // the max value of a bucket, which assumes that each bucket must have at least one element
+        private val bucketMax = total - buckets + 1
+        private val bars = LinkedList<Int>()
+
+        init {
+            require (buckets > 1)
+        }
+
+        // the "bars" from this class is from https://en.wikipedia.org/wiki/Stars_and_bars_(combinatorics)
+        // the bars are between an array of stars and create the buckets to divide the stars
+        // for this iterator, the bars start at the front of the array, and as we iterate we pop the last element and increment it
+        // or recurse if we've reached the end
+        // therefore, the end of iteration occurs when the first element has reached max value
+        override fun next(): IntArray {
+            updateBars()
+            updateArray()
+            return array
+        }
+
+        // bars.size == buckets - 1
+        private fun updateBars() {
+            require (hasNext())
+
+            if (bars.isEmpty()) { // first run
+                for (b in 1..buckets - 1) {
+                    bars.add(b)
+                }
+            } else {
+                var popDepth = 0
+                var next: Int
+
+                do {
+                    val last = bars.removeLast()
+                    popDepth += 1
+                    next = last + 1
+                } while (next + popDepth > total)
+
+                while (popDepth > 0) {
+                    bars.add(next)
+                    next += 1
+                    popDepth -= 1
+                }
             }
         }
 
-        return prev
+        // array.size == bars.size + 1
+        private fun updateArray() {
+            var sum = 0
+            var prev = 0
+            for ((i, b) in bars.withIndex()) {
+                val stars = b - prev
+                array[i] = stars
+                prev = b
+                sum += stars
+            }
+            array[array.lastIndex] = total - sum
+        }
+
+
+        override fun hasNext(): Boolean {
+            if (bars.isEmpty()) return true
+            return bars.first() < bucketMax
+        }
+
+    }
+
+    fun answer(): Long {
+        var max = 0L
+        val spoons = ComboIterator(TotalSpoons, puzzleIngredients.size)
+        for (arr in spoons) {
+            val score = cookieScore(puzzleIngredients, arr)
+            if (score > max) {
+                println("new score = $max old score = $score")
+                max = score
+            }
+        }
+        return max
     }
 
 
