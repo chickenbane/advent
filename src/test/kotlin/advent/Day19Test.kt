@@ -42,7 +42,7 @@ class Day19Test {
 
     @Test
     fun answer2() {
-        Assert.assertEquals("my answer", 200, Day19.reduceSteps3(Day19.puzzleInput))
+        Assert.assertEquals("my answer", 200, Day19.numSteps(Day19.puzzleInput))
     }
 
 }

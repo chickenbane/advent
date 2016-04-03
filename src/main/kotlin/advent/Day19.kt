@@ -39,9 +39,6 @@ Your puzzle input describes all of the possible replacements and, at the bottom,
 
 
 """
-    private val initialThoughts = """
-    
-"""
 
     // replacements can't be a map because there are multiple "keys"
     data class Replacement(val left: String, val right: String)
@@ -125,59 +122,7 @@ How long will it take to make the medicine? Given the available replacements and
         return set
     }
 
-    // naive first implementation: take the shortest of the reduced string and keep trying.
-    fun reduceSteps(input: PuzzleInput): Int {
-        var count = 0
-        var molecule = input.molecule
-        do {
-            println("molecule=$molecule count=$count")
-            val reduced = reduceMolecule(molecule, input.replacements)
-            if (reduced.isEmpty()) {
-                println("ARGH!")
-            }
-            for (r in reduced) {
-                if (r.length < molecule.length) molecule = r
-            }
-            count += 1
-        } while ("e" !in reduced)
-        return count
-    }
 
-    // of course that didn't work, infinite loop.
-    data class Reduction(val molecule: String, val steps: Int)
-
-    fun reduceSteps2(input: PuzzleInput): Int {
-        val first = reduceMolecule(input.molecule, input.replacements)
-        var reductions = first.map { Reduction(it, 1) }.toSet()
-        do {
-            reductions = reduceAll(reductions, input.replacements)
-            val shortest = reductions.map { it.molecule.length }.min()!!
-            reductions = reductions.filter { it.molecule.length == shortest }.toSet()
-            println("shortest = $shortest size = ${reductions.size}")
-        } while (reductions.none { it.molecule == "e" })
-        return reductions.find { it.molecule == "e" }!!.steps
-    }
-
-    private fun reduceAll(reductions: Set<Reduction>, replacements: List<Replacement>): Set<Reduction> {
-        val nextSet = HashSet<Reduction>()
-        for (r in reductions) {
-            val set = reduceMolecule2(r.molecule, replacements)
-            nextSet.addAll(set.map { Reduction(it, r.steps + 1) })
-        }
-        return nextSet
-    }
-
-    fun reduceMolecule2(molecule: String, replacements: List<Replacement>): Set<String> {
-        val set = HashSet<String>()
-        for (rep in replacements) {
-            val i = molecule.indexOf(rep.right)
-            if (i != -1) {
-                val mol = molecule.replaceRange(i, i + rep.right.length, rep.left)
-                if (mol.length < molecule.length) set.add(mol)
-            }
-        }
-        return set
-    }
     // str is descending in this graph, so root is the answer and the deepest child is the e
     private class Node(val str: String) {
         val children: MutableSet<Node> = HashSet()
@@ -228,24 +173,6 @@ How long will it take to make the medicine? Given the available replacements and
             require(complete)
         }
 
-        fun findDepth(root: Node): Int {
-            val queue = LinkedList<Node>()
-            queue.add(root)
-            val seen = HashSet<String>()
-            var depth = 1
-            while (queue.isNotEmpty()) {
-                if (queue.any { it.isElectron }) return depth
-                seen.addAll(queue.map {it.str})
-
-                val nextQueue = queue.flatMap { it.children }.filter { it.str !in seen }.toSet()
-                queue.clear()
-                queue.addAll(nextQueue)
-                depth += 1
-                println("incrementing depth $depth next has ${nextQueue.size}")
-            }
-            throw IllegalStateException("must be found, yo.")
-        }
-
         fun findPath(root: Node): List<String> {
             val queue = LinkedList<Node>()
             queue.add(root)
@@ -273,17 +200,13 @@ How long will it take to make the medicine? Given the available replacements and
         }
     }
 
-    // 201 too high
-
-    fun reduceSteps3(input: PuzzleInput): Int {
+    fun numSteps(input: PuzzleInput): Int {
         val graph = Graph(input.replacements)
         val root = graph.createNode(input.molecule)
         graph.populate(root)
         val path = graph.findPath(root)
-        var step = 1
-        path.forEach {
-            println("$step (${it.length}) = $it")
-            step += 1
+        path.forEachIndexed { i, s ->
+            println("$i (${s.length}) = $s")
         }
         return path.size
     }
