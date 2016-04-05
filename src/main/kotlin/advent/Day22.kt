@@ -1,5 +1,7 @@
 package advent
 
+import java.util.*
+
 /**
  * Created by a-jotsai on 3/29/16.
  */
@@ -45,6 +47,8 @@ Player casts Magic Missile, dealing 4 damage.
 - Player has 2 hit points, 0 armor, 24 mana
 - Boss has 3 hit points
 Poison deals 3 damage. This kills the boss, and the player wins.
+
+
 Now, suppose the same initial conditions, except that the boss has 14 hit points instead:
 
 -- Player turn --
@@ -118,31 +122,123 @@ Hit Points: 51
 Damage: 9
     """
 
-    data class Player(var hitPoints: Int, var mana: Int)
-    data class Enemy(var hitPoints: Int, val damage: Int)
-
-    val playerStart = Player(50, 500)
-    val enemyStart = Enemy(51, 9)
 
     sealed class GameResult {
-        class Win : GameResult()
-        class Lose : GameResult()
+        object Win : GameResult()
+        object Lose : GameResult()
         class OnGoing(val state: GameState) : GameResult()
     }
+    data class Player(val hitPoints: Int, val mana: Int, val armor: Int = 0) {
+        override fun toString() = "- Player has $hitPoints hit points, $armor armor, $mana mana"
+    }
+    data class Boss(val hitPoints: Int, val damage: Int) {
+        override fun toString() = "- Boss has $hitPoints hit points"
+        fun next(newHp: Int): Boss = copy(hitPoints = newHp)
+    }
+    data class GameState(val player: Player, val boss: Boss, val effects: Set<CastSpell>) {
+        fun nextSpells(): Set<Spell> = effects.map { it.next() }.filterNotNull().map { it.spell }.toSet()
 
-    class GameState(var playerHp: Int, var mana: Int)
+        fun nextTurns(): Map<Spell, GameResult> {
+            val nextSpells = nextSpells()
+            val nextTurns = LinkedHashMap<Spell, GameResult>()
+            if (nextSpells.isEmpty()) {
+                Spell.values().forEach { nextTurns.put(it, GameResult.Lose) }
+            } else {
+                nextSpells.forEach {
+                    val castSpell = it.cast()
+                    nextTurns.put(it, playerSpell(castSpell))
+                }
+            }
+            return nextTurns
+        }
 
-    enum class Spell(val mana: Int, val effect: Effect?) {
-        MISSILE(53, null),  // bossHp - 4
-        DRAIN(73, null),  // bossHp - 2 , playerHp + 2
-        SHIELD(113, Effect.SHIELD),
-        POISON(173, Effect.POISON),
-        RECHARGE(229, Effect.RECHARGE)
+        fun effects(): GameResult {
+            // TODO print effects
+            return GameResult.Win
+        }
+
+        fun playerSpell(castSpell: CastSpell): GameResult {
+            val nextMana = player.mana - castSpell.spell.mana
+            require(nextMana >= 0)
+            val nextEffectsList = effects.map { it.next() }.filterNotNull() + castSpell
+            val nextEffects = nextEffectsList.toSet()
+            when(castSpell.spell) {
+                Spell.MISSILE -> {
+                    val bossHp = boss.hitPoints - 4
+                    if (bossHp <= 0) return GameResult.Win
+                    return GameResult.OnGoing(GameState(player.copy(mana = nextMana), boss.copy(hitPoints = bossHp), nextEffects))
+                }
+                Spell.DRAIN -> {
+                    val bossHp = boss.hitPoints - 2
+                    if (bossHp <= 0) return GameResult.Win
+                    val hp = player.hitPoints + 2
+                    return GameResult.OnGoing(GameState(player.copy(hitPoints = hp, mana = nextMana), boss.copy(hitPoints = bossHp), nextEffects))
+                }
+                else -> return GameResult.OnGoing(GameState(player.copy(mana = nextMana), boss, nextEffects))
+            }
+        }
+
+        fun bossTurn(): GameResult {
+            val hp = player.hitPoints - bossDamage()
+            if (hp <= 0) return GameResult.Lose
+            val armor = 0 // TODO armor
+            val nextPlayer = Player(hp, player.mana, armor)
+            // TODO effects
+            val effects = emptySet<CastSpell>()
+            return GameResult.OnGoing(GameState(nextPlayer, boss, effects))
+        }
+
+        fun bossDamage(): Int = Math.max(1, boss.damage - player.armor)
+
+        fun cast(spell: Spell): GameResult {
+            println("-- Player turn --")
+            println(player)
+            println(boss)
+
+            val playerEffectsResult = effects()
+            if (playerEffectsResult !is GameResult.OnGoing) return playerEffectsResult
+
+            println("Player casts $spell.")
+
+            val cast = spell.cast()
+            val playerCastResult = playerEffectsResult.state.playerSpell(cast)
+            if (playerCastResult !is GameResult.OnGoing) return playerCastResult
+
+            println("-- Boss turn --")
+            println(playerCastResult.state.player)
+            println(playerCastResult.state.boss)
+
+            val bossEffectsResult = playerCastResult.state.effects()
+            if (bossEffectsResult !is GameResult.OnGoing) return bossEffectsResult
+
+            println("Boss attacks for ${bossDamage()} damage.")
+
+            return bossEffectsResult.state.bossTurn()
+        }
     }
 
-    enum class Effect(val turns: Int) {
-        SHIELD(6),  // playerArmor + 7
-        POISON(6),  // bossHp - 3
-        RECHARGE(5)  // mana + 101
+    val root = GameState(Player(50, 500), Boss(51, 9), emptySet())
+
+    data class CastSpell(val spell: Spell, val turnsLeft: Int) {
+        fun next(): CastSpell? {
+            if (turnsLeft == 0) return null
+            return CastSpell(spell, turnsLeft - 1)
+        }
+    }
+
+    enum class Spell(val mana: Int, val turns: Int) {
+        MISSILE(53, 0),  // bossHp - 4
+        DRAIN(73, 0),  // bossHp - 2 , playerHp + 2
+        SHIELD(113, 6), // playerArmor + 7
+        POISON(173, 6),  // bossHp - 3
+        RECHARGE(229, 5);  // mana + 101
+
+        fun cast(): CastSpell {
+            return CastSpell(this, turns)
+        }
+    }
+
+    class Node(state: GameResult) {
+        val children: MutableSet<Node> = HashSet()
     }
 }
