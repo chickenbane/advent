@@ -9,13 +9,21 @@ object Day22 {
     private val part1 = """
     --- Day 22: Wizard Simulator 20XX ---
 
-Little Henry Case decides that defeating bosses with swords and stuff is boring. Now he's playing the game with a wizard. Of course, he gets stuck on another boss and needs your help again.
+Little Henry Case decides that defeating bosses with swords and stuff is boring.
+Now he's playing the game with a wizard. Of course, he gets stuck on another boss and needs your help again.
 
-In this version, combat still proceeds with the player and the boss taking alternating turns. The player still goes first. Now, however, you don't get any equipment; instead, you must choose one of your spells to cast. The first character at or below 0 hit points loses.
+In this version, combat still proceeds with the player and the boss taking alternating turns.
+The player still goes first. Now, however, you don't get any equipment;
+instead, you must choose one of your spells to cast. The first character at or below 0 hit points loses.
 
-Since you're a wizard, you don't get to wear armor, and you can't attack normally. However, since you do magic damage, your opponent's armor is ignored, and so the boss effectively has zero armor as well. As before, if armor (from a spell, in this case) would reduce damage below 1, it becomes 1 instead - that is, the boss' attacks always deal at least 1 damage.
+Since you're a wizard, you don't get to wear armor, and you can't attack normally.
+However, since you do magic damage, your opponent's armor is ignored, and so the boss effectively has zero armor as well.
+As before, if armor (from a spell, in this case) would reduce damage below 1, it becomes 1 instead -
+that is, the boss' attacks always deal at least 1 damage.
 
-On each of your turns, you must select one of your spells to cast. If you cannot afford to cast any spell, you lose. Spells cost mana; you start with 500 mana, but have no maximum limit. You must have enough mana to cast a spell, and its cost is immediately deducted when you cast it. Your spells are Magic Missile, Drain, Shield, Poison, and Recharge.
+On each of your turns, you must select one of your spells to cast. If you cannot afford to cast any spell, you lose.
+Spells cost mana; you start with 500 mana, but have no maximum limit. You must have enough mana to cast a spell,
+and its cost is immediately deducted when you cast it. Your spells are Magic Missile, Drain, Shield, Poison, and Recharge.
 
 Magic Missile costs 53 mana. It instantly does 4 damage.
 Drain costs 73 mana. It instantly does 2 damage and heals you for 2 hit points.
@@ -133,31 +141,21 @@ Damage: 9
     }
     data class Boss(val hitPoints: Int, val damage: Int) {
         override fun toString() = "- Boss has $hitPoints hit points"
-        fun next(newHp: Int): Boss = copy(hitPoints = newHp)
     }
     data class GameState(val player: Player, val boss: Boss, val effects: Set<CastSpell>) {
-        fun nextSpells(): Set<Spell> = effects.map { it.next() }.filterNotNull().map { it.spell }.toSet()
-
-        fun nextTurns(): Map<Spell, GameResult> {
-            val nextSpells = nextSpells()
-            val nextTurns = LinkedHashMap<Spell, GameResult>()
-            if (nextSpells.isEmpty()) {
-                Spell.values().forEach { nextTurns.put(it, GameResult.Lose) }
-            } else {
-                nextSpells.forEach {
-                    val castSpell = it.cast()
-                    nextTurns.put(it, playerSpell(castSpell))
-                }
-            }
-            return nextTurns
-        }
-
-        fun effects(): GameResult {
-            // TODO print effects
-            return GameResult.Win
+        fun spellEffects(): GameResult {
+            val spells = effects.map { it.spell }
+            val mana = player.mana + if (Spell.RECHARGE in spells) 101 else 0
+            val armor = if (Spell.SHIELD in spells) 7 else 0
+            val bossHp = boss.hitPoints - if (Spell.POISON in spells) 3 else 0
+            println("spells in effect: $spells effects: $mana $armor $bossHp")
+            if (bossHp <= 0) return GameResult.Win
+            val nextEffects = effects.map { it.next() }.filterNotNull().toSet()
+            return GameResult.OnGoing(GameState(player.copy(mana = mana, armor = armor), boss.copy(hitPoints = bossHp), nextEffects))
         }
 
         fun playerSpell(castSpell: CastSpell): GameResult {
+            require(castSpell.spell in castableSpells())
             val nextMana = player.mana - castSpell.spell.mana
             require(nextMana >= 0)
             val nextEffectsList = effects.map { it.next() }.filterNotNull() + castSpell
@@ -179,23 +177,19 @@ Damage: 9
         }
 
         fun bossTurn(): GameResult {
-            val hp = player.hitPoints - bossDamage()
+            val bossDamage = Math.max(1, boss.damage - player.armor)
+            println("Boss attacks for $bossDamage damage.")
+            val hp = player.hitPoints - bossDamage
             if (hp <= 0) return GameResult.Lose
-            val armor = 0 // TODO armor
-            val nextPlayer = Player(hp, player.mana, armor)
-            // TODO effects
-            val effects = emptySet<CastSpell>()
-            return GameResult.OnGoing(GameState(nextPlayer, boss, effects))
+            return GameResult.OnGoing(GameState(player.copy(hitPoints = hp), boss, effects))
         }
-
-        fun bossDamage(): Int = Math.max(1, boss.damage - player.armor)
 
         fun cast(spell: Spell): GameResult {
             println("-- Player turn --")
             println(player)
             println(boss)
 
-            val playerEffectsResult = effects()
+            val playerEffectsResult = spellEffects()
             if (playerEffectsResult !is GameResult.OnGoing) return playerEffectsResult
 
             println("Player casts $spell.")
@@ -208,12 +202,28 @@ Damage: 9
             println(playerCastResult.state.player)
             println(playerCastResult.state.boss)
 
-            val bossEffectsResult = playerCastResult.state.effects()
+            val bossEffectsResult = playerCastResult.state.spellEffects()
             if (bossEffectsResult !is GameResult.OnGoing) return bossEffectsResult
 
-            println("Boss attacks for ${bossDamage()} damage.")
-
             return bossEffectsResult.state.bossTurn()
+        }
+
+        fun castableSpells(): Set<Spell> {
+            val currentEffects = effects.filter { it.turnsLeft > 0 }.map { it.spell }.toSet()
+            return Spell.values().filter { it !in currentEffects && it.mana <= player.mana }.toSet()
+        }
+
+        fun nextTurns(): Map<Spell, GameResult> {
+            val nextSpells = castableSpells()
+            val nextTurns = LinkedHashMap<Spell, GameResult>()
+            if (nextSpells.isEmpty()) {
+                Spell.values().forEach { nextTurns.put(it, GameResult.Lose) }
+            } else {
+                nextSpells.forEach {
+                    nextTurns.put(it, cast(it))
+                }
+            }
+            return nextTurns
         }
     }
 
