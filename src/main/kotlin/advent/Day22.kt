@@ -150,7 +150,7 @@ Damage: 9
     }
     data class GameState(val player: Player, val boss: Boss, val effects: Set<CastSpell>) {
         fun spellEffects(): GameResult {
-            val spells = effects.map { it.spell }
+            val spells = effects.filter { it.turnsLeft > 0 }.map { it.spell }
             val mana = player.mana + if (Spell.RECHARGE in spells) 101 else 0
             val armor = if (Spell.SHIELD in spells) 7 else 0
             val bossHp = boss.hitPoints - if (Spell.POISON in spells) 3 else 0

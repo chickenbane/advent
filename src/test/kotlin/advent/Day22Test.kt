@@ -4,6 +4,7 @@ import advent.Day22.Boss
 import advent.Day22.GameState
 import advent.Day22.Player
 import advent.Day22.Spell
+import org.junit.Assert
 import org.junit.Test
 
 /**
@@ -44,7 +45,8 @@ Poison deals 3 damage. This kills the boss, and the player wins.
         val turn1 = start.cast(Spell.POISON)
         if (turn1 !is Day22.GameResult.OnGoing) throw AssertionError("game not yet over")
         val turn2 = turn1.state.cast(Spell.MISSILE)
-        println("$turn2")
+        println(turn2)
+        Assert.assertEquals("player wins", Day22.GameResult.Win, turn2)
     }
 
     /*
@@ -144,5 +146,7 @@ turn 5
         if (turn4 !is Day22.GameResult.OnGoing) throw AssertionError("game not yet over")
         val turn5 = turn4.state.cast(Spell.POISON)
         println(turn5)
+        Assert.assertEquals("player wins", Day22.GameResult.Win, turn5)
+
     }
 }
