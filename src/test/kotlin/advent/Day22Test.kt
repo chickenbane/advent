@@ -150,10 +150,27 @@ turn 5
         Assert.assertEquals("player wins", GameResult.Win, turn5)
     }
 
-    @Test
+    //@Test
     fun answer() {
-        Assert.assertEquals("my answer", 900, Day22.answerManaSpent())
+        Assert.assertEquals("my answer", 900, Day22.answer())
     }
 
+    @Test
+    fun answer2() {
+        Assert.assertEquals("my answer", 1242, Day22.answer2())
+    }
     // 1242 too high
+
+    /*
+    Hard Mode
+Poison
+Drain
+Recharge
+Poison
+Shield
+Recharge
+Poison
+Magic Missile
+
+     */
 }

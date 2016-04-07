@@ -190,12 +190,6 @@ Damage: 9
             return GameResult.OnGoing(GameState(player.copy(hitPoints = hp), boss, effects))
         }
 
-        fun part2(): GameResult {
-            val hp = player.hitPoints - 1
-            if (hp <= 0) return GameResult.Lose
-            return GameResult.OnGoing(GameState(player.copy(hitPoints = hp), boss, effects))
-        }
-
         fun cast(spell: Spell, print: Boolean = false): GameResult {
             if (print) {
                 println("-- Player turn --")
@@ -203,12 +197,7 @@ Damage: 9
                 println(boss)
             }
 
-            // part 2
-            val part2result = part2()
-            if (part2result !is GameResult.OnGoing) return part2result
-
-
-            val playerEffectsResult = part2result.state.spellEffects()
+            val playerEffectsResult = spellEffects()
             if (playerEffectsResult !is GameResult.OnGoing) return playerEffectsResult
 
             if (print) println("Player casts $spell.")
@@ -291,11 +280,21 @@ Damage: 9
                 }
             }
         }
+        val children2: List<Node> by lazy {
+            val list = LinkedList<Node>()
+            if (result is GameResult.OnGoing) {
+                val map = nextTurns2(result.state)
+                for ((s, r) in map) {
+                    list.add(Node(r, manaSpent + s.mana))
+                }
+            }
+            list
+        }
     }
 
     val root = GameState(Player(50, 500), Boss(51, 9), emptySet())
 
-    fun answerManaSpent(): Int {
+    fun answer(): Int {
         val rootNode = Node(GameResult.OnGoing(root), 0)
         val queue = LinkedList<Node>()
         queue.add(rootNode)
@@ -322,4 +321,53 @@ At the start of each player turn (before any other effects apply), you lose 1 hi
 With the same starting stats for you and the boss, what is the least amount of mana you can spend and still win the fight?
     """
 
+
+    fun cast2(state: GameState, spell: Spell): GameResult {
+        val hp = state.player.hitPoints - 1
+        if (hp <= 0) return GameResult.Lose
+        val part2result = GameResult.OnGoing(GameState(state.player.copy(hitPoints = hp), state.boss, state.effects))
+
+        val playerEffectsResult = part2result.state.spellEffects()
+        if (playerEffectsResult !is GameResult.OnGoing) return playerEffectsResult
+
+        val cast = spell.cast()
+        val playerCastResult = playerEffectsResult.state.playerSpell(cast)
+        if (playerCastResult !is GameResult.OnGoing) return playerCastResult
+
+        val bossEffectsResult = playerCastResult.state.spellEffects()
+        if (bossEffectsResult !is GameResult.OnGoing) return bossEffectsResult
+
+        return bossEffectsResult.state.bossTurn()
+    }
+
+    fun nextTurns2(state: GameState): Map<Spell, GameResult> = LinkedHashMap<Spell, GameResult>().apply {
+        state.castableSpells().forEach {
+            put(it, cast2(state, it))
+        }
+    }
+
+    fun answer2(): Int {
+        val rootNode = Node(GameResult.OnGoing(root), 0)
+        val queue = LinkedList<Node>()
+        queue.add(rootNode)
+        var min = 1243
+        var nodes = 0
+        var wins = 0
+        var losses = 0
+        while (queue.isNotEmpty()) {
+            val node = queue.removeFirst()
+            if (node.win) {
+                if (node.manaSpent < min) {
+                    min = node.manaSpent
+                }
+                wins += 1
+            } else {
+                if (node.result is GameResult.Lose) losses += 1
+                queue.addAll(node.children2)
+            }
+            nodes += 1
+        }
+        println("nodes inspected=$nodes wins = $wins losses = $losses")
+        return min
+    }
 }
