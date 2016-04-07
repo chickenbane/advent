@@ -132,9 +132,15 @@ Damage: 9
 
 
     sealed class GameResult {
-        object Win : GameResult()
-        object Lose : GameResult()
-        class OnGoing(val state: GameState) : GameResult()
+        object Win : GameResult() {
+            override fun toString(): String = "Player wins"
+        }
+        object Lose : GameResult() {
+            override fun toString(): String = "Player loses"
+        }
+        class OnGoing(val state: GameState) : GameResult() {
+            override fun toString(): String = "OnGoing: ${state.player}\n${state.boss}\n${state.effects}"
+        }
     }
     data class Player(val hitPoints: Int, val mana: Int, val armor: Int = 0) {
         override fun toString() = "- Player has $hitPoints hit points, $armor armor, $mana mana"
@@ -148,7 +154,7 @@ Damage: 9
             val mana = player.mana + if (Spell.RECHARGE in spells) 101 else 0
             val armor = if (Spell.SHIELD in spells) 7 else 0
             val bossHp = boss.hitPoints - if (Spell.POISON in spells) 3 else 0
-            println("spells in effect: $spells effects: $mana $armor $bossHp")
+            //if (spells.isNotEmpty()) println("spells in effect: $effects effects: mana=$mana armor=$armor bossHp=$bossHp")
             if (bossHp <= 0) return GameResult.Win
             val nextEffects = effects.map { it.next() }.filterNotNull().toSet()
             return GameResult.OnGoing(GameState(player.copy(mana = mana, armor = armor), boss.copy(hitPoints = bossHp), nextEffects))
@@ -158,7 +164,7 @@ Damage: 9
             require(castSpell.spell in castableSpells())
             val nextMana = player.mana - castSpell.spell.mana
             require(nextMana >= 0)
-            val nextEffectsList = effects.map { it.next() }.filterNotNull() + castSpell
+            val nextEffectsList = effects + castSpell
             val nextEffects = nextEffectsList.toSet()
             when(castSpell.spell) {
                 Spell.MISSILE -> {
@@ -197,6 +203,7 @@ Damage: 9
             val cast = spell.cast()
             val playerCastResult = playerEffectsResult.state.playerSpell(cast)
             if (playerCastResult !is GameResult.OnGoing) return playerCastResult
+            println("Player turn complete, effects: ${playerCastResult.state.effects}")
 
             println("-- Boss turn --")
             println(playerCastResult.state.player)
@@ -205,7 +212,11 @@ Damage: 9
             val bossEffectsResult = playerCastResult.state.spellEffects()
             if (bossEffectsResult !is GameResult.OnGoing) return bossEffectsResult
 
-            return bossEffectsResult.state.bossTurn()
+            val bossTurn = bossEffectsResult.state.bossTurn()
+            //println("---Turn complete---\n$bossTurn\n")
+            println("Boss turn complete, effects: ${bossEffectsResult.state.effects}")
+            println()
+            return bossTurn
         }
 
         fun castableSpells(): Set<Spell> {
