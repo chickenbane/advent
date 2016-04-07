@@ -154,7 +154,7 @@ Damage: 9
             val mana = player.mana + if (Spell.RECHARGE in spells) 101 else 0
             val armor = if (Spell.SHIELD in spells) 7 else 0
             val bossHp = boss.hitPoints - if (Spell.POISON in spells) 3 else 0
-            //if (spells.isNotEmpty()) println("spells in effect: $effects effects: mana=$mana armor=$armor bossHp=$bossHp")
+            if (spells.isNotEmpty()) println("spells in effect: $effects effects: mana=$mana armor=$armor bossHp=$bossHp")
             if (bossHp <= 0) return GameResult.Win
             val nextEffects = effects.map { it.next() }.filterNotNull().toSet()
             return GameResult.OnGoing(GameState(player.copy(mana = mana, armor = armor), boss.copy(hitPoints = bossHp), nextEffects))

@@ -144,7 +144,7 @@ turn 5
         val turn4 = turn3.state.cast(Spell.POISON)
         println(turn4)
         if (turn4 !is Day22.GameResult.OnGoing) throw AssertionError("game not yet over")
-        val turn5 = turn4.state.cast(Spell.POISON)
+        val turn5 = turn4.state.cast(Spell.MISSILE)
         println(turn5)
         Assert.assertEquals("player wins", Day22.GameResult.Win, turn5)
 
