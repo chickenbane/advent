@@ -1,6 +1,7 @@
 package advent
 
 import advent.Day22.Boss
+import advent.Day22.GameResult
 import advent.Day22.GameState
 import advent.Day22.Player
 import advent.Day22.Spell
@@ -43,10 +44,10 @@ Poison deals 3 damage. This kills the boss, and the player wins.
     fun example1() {
         val start = GameState(Player(10, 250), Boss(13, 8), emptySet())
         val turn1 = start.cast(Spell.POISON)
-        if (turn1 !is Day22.GameResult.OnGoing) throw AssertionError("game not yet over")
+        if (turn1 !is GameResult.OnGoing) throw AssertionError("game not yet over")
         val turn2 = turn1.state.cast(Spell.MISSILE)
         println(turn2)
-        Assert.assertEquals("player wins", Day22.GameResult.Win, turn2)
+        Assert.assertEquals("player wins", GameResult.Win, turn2)
     }
 
     /*
@@ -134,19 +135,25 @@ turn 5
         val start = GameState(Player(10, 250), Boss(14, 8), emptySet())
         val turn1 = start.cast(Spell.RECHARGE)
         println(turn1)
-        if (turn1 !is Day22.GameResult.OnGoing) throw AssertionError("game not yet over")
+        if (turn1 !is GameResult.OnGoing) throw AssertionError("game not yet over")
         val turn2 = turn1.state.cast(Spell.SHIELD)
         println(turn2)
-        if (turn2 !is Day22.GameResult.OnGoing) throw AssertionError("game not yet over")
+        if (turn2 !is GameResult.OnGoing) throw AssertionError("game not yet over")
         val turn3 = turn2.state.cast(Spell.DRAIN)
         println(turn3)
-        if (turn3 !is Day22.GameResult.OnGoing) throw AssertionError("game not yet over")
+        if (turn3 !is GameResult.OnGoing) throw AssertionError("game not yet over")
         val turn4 = turn3.state.cast(Spell.POISON)
         println(turn4)
-        if (turn4 !is Day22.GameResult.OnGoing) throw AssertionError("game not yet over")
+        if (turn4 !is GameResult.OnGoing) throw AssertionError("game not yet over")
         val turn5 = turn4.state.cast(Spell.MISSILE)
         println(turn5)
-        Assert.assertEquals("player wins", Day22.GameResult.Win, turn5)
-
+        Assert.assertEquals("player wins", GameResult.Win, turn5)
     }
+
+    @Test
+    fun answer() {
+        Assert.assertEquals("my answer", 900, Day22.answerManaSpent())
+    }
+
+    // 1242 too high
 }

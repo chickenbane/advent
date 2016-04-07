@@ -123,13 +123,13 @@ Player casts Magic Missile, dealing 4 damage.
 - Player has 1 hit point, 0 armor, 114 mana
 - Boss has 2 hit points
 Poison deals 3 damage. This kills the boss, and the player wins.
-You start with 50 hit points and 500 mana points. The boss's actual stats are in your puzzle input. What is the least amount of mana you can spend and still win the fight? (Do not include mana recharge effects as "spending" negative mana.)
+You start with 50 hit points and 500 mana points. The boss's actual stats are in your puzzle input.
 
+What is the least amount of mana you can spend and still win the fight? (Do not include mana recharge effects as "spending" negative mana.)
 
 Hit Points: 51
 Damage: 9
     """
-
 
     sealed class GameResult {
         object Win : GameResult() {
@@ -154,7 +154,7 @@ Damage: 9
             val mana = player.mana + if (Spell.RECHARGE in spells) 101 else 0
             val armor = if (Spell.SHIELD in spells) 7 else 0
             val bossHp = boss.hitPoints - if (Spell.POISON in spells) 3 else 0
-            if (spells.isNotEmpty()) println("spells in effect: $effects effects: mana=$mana armor=$armor bossHp=$bossHp")
+            //if (spells.isNotEmpty()) println("spells in effect: $effects effects: mana=$mana armor=$armor bossHp=$bossHp")
             if (bossHp <= 0) return GameResult.Win
             val nextEffects = effects.map { it.next() }.filterNotNull().toSet()
             return GameResult.OnGoing(GameState(player.copy(mana = mana, armor = armor), boss.copy(hitPoints = bossHp), nextEffects))
@@ -184,38 +184,55 @@ Damage: 9
 
         fun bossTurn(): GameResult {
             val bossDamage = Math.max(1, boss.damage - player.armor)
-            println("Boss attacks for $bossDamage damage.")
+            //println("Boss attacks for $bossDamage damage.")
             val hp = player.hitPoints - bossDamage
             if (hp <= 0) return GameResult.Lose
             return GameResult.OnGoing(GameState(player.copy(hitPoints = hp), boss, effects))
         }
 
-        fun cast(spell: Spell): GameResult {
-            println("-- Player turn --")
-            println(player)
-            println(boss)
+        fun part2(): GameResult {
+            val hp = player.hitPoints - 1
+            if (hp <= 0) return GameResult.Lose
+            return GameResult.OnGoing(GameState(player.copy(hitPoints = hp), boss, effects))
+        }
 
-            val playerEffectsResult = spellEffects()
+        fun cast(spell: Spell, print: Boolean = false): GameResult {
+            if (print) {
+                println("-- Player turn --")
+                println(player)
+                println(boss)
+            }
+
+            // part 2
+            val part2result = part2()
+            if (part2result !is GameResult.OnGoing) return part2result
+
+
+            val playerEffectsResult = part2result.state.spellEffects()
             if (playerEffectsResult !is GameResult.OnGoing) return playerEffectsResult
 
-            println("Player casts $spell.")
+            if (print) println("Player casts $spell.")
 
             val cast = spell.cast()
             val playerCastResult = playerEffectsResult.state.playerSpell(cast)
             if (playerCastResult !is GameResult.OnGoing) return playerCastResult
-            println("Player turn complete, effects: ${playerCastResult.state.effects}")
 
-            println("-- Boss turn --")
-            println(playerCastResult.state.player)
-            println(playerCastResult.state.boss)
+            if (print) {
+                println("Player turn complete, effects: ${playerCastResult.state.effects}")
+                println("-- Boss turn --")
+                println(playerCastResult.state.player)
+                println(playerCastResult.state.boss)
+            }
 
             val bossEffectsResult = playerCastResult.state.spellEffects()
             if (bossEffectsResult !is GameResult.OnGoing) return bossEffectsResult
 
             val bossTurn = bossEffectsResult.state.bossTurn()
-            //println("---Turn complete---\n$bossTurn\n")
-            println("Boss turn complete, effects: ${bossEffectsResult.state.effects}")
-            println()
+
+            if (print) {
+                println("Boss turn complete, effects: ${bossEffectsResult.state.effects}")
+                println()
+            }
             return bossTurn
         }
 
@@ -238,8 +255,6 @@ Damage: 9
         }
     }
 
-    val root = GameState(Player(50, 500), Boss(51, 9), emptySet())
-
     data class CastSpell(val spell: Spell, val turnsLeft: Int) {
         fun next(): CastSpell? {
             if (turnsLeft == 0) return null
@@ -259,7 +274,52 @@ Damage: 9
         }
     }
 
-    class Node(state: GameResult) {
-        val children: MutableSet<Node> = HashSet()
+    data class Node(val result: GameResult, val manaSpent: Int) {
+        val win: Boolean = result is GameResult.Win
+        val notLoss: Boolean = result !is GameResult.Lose
+        val next: Map<Spell, GameResult> by lazy {
+            if (result is GameResult.OnGoing) {
+                result.state.nextTurns()
+            } else {
+                emptyMap()
+            }
+        }
+        val children: Set<Node> by lazy {
+            LinkedHashSet<Node>().apply {
+                for ((s, r) in next) {
+                    add(Node(r, manaSpent + s.mana))
+                }
+            }
+        }
     }
+
+    val root = GameState(Player(50, 500), Boss(51, 9), emptySet())
+
+    fun answerManaSpent(): Int {
+        val rootNode = Node(GameResult.OnGoing(root), 0)
+        val queue = LinkedList<Node>()
+        queue.add(rootNode)
+        while (queue.isNotEmpty()) {
+            val node = queue.minBy { it.manaSpent }!!
+            val removed = queue.remove(node)
+            require(removed)
+            if (node.win) {
+                return node.manaSpent
+            } else {
+                queue.addAll(node.children.filter { it.notLoss })
+            }
+        }
+        throw IllegalStateException("no wins found?")
+    }
+
+    private val part2 = """
+    --- Part Two ---
+
+On the next run through the game, you increase the difficulty to hard.
+
+At the start of each player turn (before any other effects apply), you lose 1 hit point. If this brings you to or below 0 hit points, you lose.
+
+With the same starting stats for you and the boss, what is the least amount of mana you can spend and still win the fight?
+    """
+
 }
