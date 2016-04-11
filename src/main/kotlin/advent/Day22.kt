@@ -1,6 +1,8 @@
 package advent
 
 import java.util.*
+import kotlin.properties.ReadWriteProperty
+import kotlin.reflect.KProperty
 
 /**
  * Created by a-jotsai on 3/29/16.
@@ -154,7 +156,7 @@ Damage: 9
             val mana = player.mana + if (Spell.RECHARGE in spells) 101 else 0
             val armor = if (Spell.SHIELD in spells) 7 else 0
             val bossHp = boss.hitPoints - if (Spell.POISON in spells) 3 else 0
-            //if (spells.isNotEmpty()) println("spells in effect: $effects effects: mana=$mana armor=$armor bossHp=$bossHp")
+            //if (spells.isNotEmpty()) println("spell effects $effects effects: mana=$mana armor=$armor bossHp=$bossHp")
             if (bossHp <= 0) return GameResult.Win
             val nextEffects = effects.map { it.next() }.filterNotNull().toSet()
             return GameResult.OnGoing(GameState(player.copy(mana = mana, armor = armor), boss.copy(hitPoints = bossHp), nextEffects))
@@ -226,7 +228,7 @@ Damage: 9
         }
 
         fun castableSpells(): Set<Spell> {
-            val currentEffects = effects.filter { it.turnsLeft > 0 }.map { it.spell }.toSet()
+            val currentEffects = effects.filter { it.turnsLeft > 1 }.map { it.spell }.toSet()
             return Spell.values().filter { it !in currentEffects && it.mana <= player.mana }.toSet()
         }
 
@@ -263,9 +265,10 @@ Damage: 9
         }
     }
 
-    data class Node(val result: GameResult, val manaSpent: Int) {
+    data class Node(val result: GameResult, val manaSpent: Int, val spell: Spell? = null) {
         val win: Boolean = result is GameResult.Win
         val notLoss: Boolean = result !is GameResult.Lose
+
         val next: Map<Spell, GameResult> by lazy {
             if (result is GameResult.OnGoing) {
                 result.state.nextTurns()
@@ -276,7 +279,7 @@ Damage: 9
         val children: Set<Node> by lazy {
             LinkedHashSet<Node>().apply {
                 for ((s, r) in next) {
-                    add(Node(r, manaSpent + s.mana))
+                    add(withParent(r, s))
                 }
             }
         }
@@ -285,19 +288,36 @@ Damage: 9
             if (result is GameResult.OnGoing) {
                 val map = nextTurns2(result.state)
                 for ((s, r) in map) {
-                    list.add(Node(r, manaSpent + s.mana))
+                    list.add(withParent(r, s))
                 }
+            }
+            list
+        }
+
+        //var parent: Node by notNullOnce<Node>()
+        var parent: Node? = null
+        fun withParent(childResult: GameResult, spell: Spell): Node {
+            val node = Node(childResult, manaSpent + spell.mana, spell)
+            node.parent = this
+            return node
+        }
+        val spells: List<Spell> by lazy {
+            val list = LinkedList<Spell>()
+            var node: Node = this
+            while (node.parent != null && node.parent != PuzzleRootNode) {
+                if (node.spell != null) list.addFirst(node.spell)
+                node = node.parent!!
             }
             list
         }
     }
 
-    val root = GameState(Player(50, 500), Boss(51, 9), emptySet())
+    val PuzzleStartState = GameState(Player(50, 500), Boss(51, 9), emptySet())
+    val PuzzleRootNode = Node(GameResult.OnGoing(PuzzleStartState), 0)
 
     fun answer(): Int {
-        val rootNode = Node(GameResult.OnGoing(root), 0)
         val queue = LinkedList<Node>()
-        queue.add(rootNode)
+        queue.add(PuzzleRootNode)
         while (queue.isNotEmpty()) {
             val node = queue.minBy { it.manaSpent }!!
             val removed = queue.remove(node)
@@ -346,10 +366,20 @@ With the same starting stats for you and the boss, what is the least amount of m
         }
     }
 
+    fun cast2(state: GameState, spells: List<Spell>): GameResult {
+        var result: GameResult = GameResult.OnGoing(state)
+        println("spells cost: ${spells.map{it.mana}.sum()}")
+        for (s in spells) {
+            if (result !is GameResult.OnGoing) return result
+            println("spell: $s ${result.state}")
+            result = cast2(result.state, s)
+        }
+        return result
+    }
+
     fun answer2(): Int {
-        val rootNode = Node(GameResult.OnGoing(root), 0)
         val queue = LinkedList<Node>()
-        queue.add(rootNode)
+        queue.add(PuzzleRootNode)
         var min = 1243
         var nodes = 0
         var wins = 0
@@ -370,4 +400,72 @@ With the same starting stats for you and the boss, what is the least amount of m
         println("nodes inspected=$nodes wins = $wins losses = $losses")
         return min
     }
+
+    private val Ugh = listOf(
+            Spell.POISON,
+            Spell.DRAIN,
+            Spell.RECHARGE,
+            Spell.POISON,
+            Spell.SHIELD,
+            Spell.RECHARGE,
+            Spell.POISON,
+            Spell.MISSILE
+    )
+
+    fun answer2why(node3: Node): Unit {
+        // why is poison not here?!
+        val state: GameState = if (node3.result is GameResult.OnGoing) node3.result.state else throw IllegalStateException("wha")
+        println("effects = ${state.effects}")
+        println("castable spells = ${state.castableSpells()}")
+        println("next spells = ${state.nextTurns()}")
+        println("my state = $state")
+    }
+
+    fun answer2wtf(): Int {
+        val queue = LinkedList<Node>()
+        queue.add(PuzzleRootNode)
+        var min = 1243
+        var nodes = 0
+        var wins = 0
+        var losses = 0
+        while (queue.isNotEmpty()) {
+            val node = queue.removeFirst()
+            if (node.win) {
+                if (node.manaSpent < min) {
+                    min = node.manaSpent
+                }
+                wins += 1
+            } else {
+                if (node.result is GameResult.Lose) losses += 1
+                queue.addAll(node.children2)
+            }
+            if (node.spells == Ugh) {
+                throw IllegalStateException("WHY?!")
+            } else {
+                if (node.spells.size == Ugh.size && node.spells.first() == Spell.POISON && node.spells.last() == Spell.MISSILE) {
+                    println("UGH> ${node.spells}")
+                }
+            }
+            nodes += 1
+        }
+        println("nodes inspected=$nodes wins = $wins losses = $losses")
+        return min
+    }
+
+    // Just like Delegates.notNull(), but also throws if the var is set more than once
+    fun <T: Any> notNullOnce(): ReadWriteProperty<Any?, T> = NotNullVarOnce()
+    private class NotNullVarOnce<T: Any>() : ReadWriteProperty<Any?, T> {
+        private var value: T? = null
+
+        override fun getValue(thisRef: Any?, property: KProperty<*>): T {
+            return value ?: throw IllegalStateException("Property ${property.name} should be initialized before get.")
+        }
+
+        override fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
+            if (this.value != null) throw IllegalStateException("Property ${property.name} already set!")
+            this.value = value
+        }
+    }
+
+
 }

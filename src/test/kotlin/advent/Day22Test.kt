@@ -150,14 +150,53 @@ turn 5
         Assert.assertEquals("player wins", GameResult.Win, turn5)
     }
 
-    //@Test
+    @Test
+    fun example2casts2() {
+        val spells = listOf(
+                Spell.POISON,
+                Spell.DRAIN,
+                Spell.RECHARGE,
+                Spell.POISON,
+                Spell.SHIELD,
+                Spell.RECHARGE,
+                Spell.POISON,
+                Spell.MISSILE)
+        val result = Day22.cast2(Day22.PuzzleStartState, spells)
+        println("allSpells cost = ${spells.map { it.mana }.sum()}")
+        Assert.assertEquals("player wins", GameResult.Win, result)
+    }
+
+    @Test
     fun answer() {
         Assert.assertEquals("my answer", 900, Day22.answer())
     }
 
     @Test
     fun answer2() {
-        Assert.assertEquals("my answer", 1242, Day22.answer2())
+        Assert.assertEquals("my answer", 1216, Day22.answer2())
+    }
+
+    @Test
+    fun wtf() {
+        val root = Day22.PuzzleRootNode.children2
+        val rootSpells = root.map { it.spell }.filterNotNull()
+
+        Assert.assertTrue("one", Spell.POISON in rootSpells)
+
+        val node1: Day22.Node = root.find { it.spell == Spell.POISON } ?: throw AssertionError("one")
+        val node1spells = node1.children2.filterNotNull().map { it.spell }
+
+        Assert.assertTrue("two", Spell.DRAIN in node1spells)
+
+        val node2 = node1.children2.find { it.spell == Spell.DRAIN } ?: throw AssertionError("two")
+        val node3 = node2.children2.find { it.spell == Spell.RECHARGE } ?: throw AssertionError("three")
+
+        Day22.answer2why(node3)
+        val n3c2 = node3.children2
+        println("spells = ${n3c2.map{it.spell}} n3.c2->$n3c2 size=${n3c2.size}")
+        //val node4 = node3.children2.find { it.spell == Spell.POISON } ?: throw AssertionError("four")
+        //val node5 = node4.children2.find { it.spell == Spell.SHIELD } ?: throw AssertionError("five")
+
     }
     // 1242 too high
 
