@@ -43,9 +43,9 @@ Poison deals 3 damage. This kills the boss, and the player wins.
     @Test
     fun example1() {
         val start = GameState(Player(10, 250), Boss(13, 8), emptySet())
-        val turn1 = start.cast(Spell.POISON)
+        val turn1 = Day22.cast(start, Spell.POISON)
         if (turn1 !is GameResult.OnGoing) throw AssertionError("game not yet over")
-        val turn2 = turn1.state.cast(Spell.MISSILE)
+        val turn2 = Day22.cast(turn1.state, Spell.MISSILE)
         println(turn2)
         Assert.assertEquals("player wins", GameResult.Win, turn2)
     }
@@ -133,37 +133,21 @@ turn 5
     @Test
     fun example2() {
         val start = GameState(Player(10, 250), Boss(14, 8), emptySet())
-        val turn1 = start.cast(Spell.RECHARGE)
+        val turn1 = Day22.cast(start, Spell.RECHARGE)
         println(turn1)
         if (turn1 !is GameResult.OnGoing) throw AssertionError("game not yet over")
-        val turn2 = turn1.state.cast(Spell.SHIELD)
+        val turn2 = Day22.cast(turn1.state, Spell.SHIELD)
         println(turn2)
         if (turn2 !is GameResult.OnGoing) throw AssertionError("game not yet over")
-        val turn3 = turn2.state.cast(Spell.DRAIN)
+        val turn3 = Day22.cast(turn2.state, Spell.DRAIN)
         println(turn3)
         if (turn3 !is GameResult.OnGoing) throw AssertionError("game not yet over")
-        val turn4 = turn3.state.cast(Spell.POISON)
+        val turn4 = Day22.cast(turn3.state, Spell.POISON)
         println(turn4)
         if (turn4 !is GameResult.OnGoing) throw AssertionError("game not yet over")
-        val turn5 = turn4.state.cast(Spell.MISSILE)
+        val turn5 = Day22.cast(turn4.state, Spell.MISSILE)
         println(turn5)
         Assert.assertEquals("player wins", GameResult.Win, turn5)
-    }
-
-    @Test
-    fun example2casts2() {
-        val spells = listOf(
-                Spell.POISON,
-                Spell.DRAIN,
-                Spell.RECHARGE,
-                Spell.POISON,
-                Spell.SHIELD,
-                Spell.RECHARGE,
-                Spell.POISON,
-                Spell.MISSILE)
-        val result = Day22.cast2(Day22.PuzzleStartState, spells)
-        println("allSpells cost = ${spells.map { it.mana }.sum()}")
-        Assert.assertEquals("player wins", GameResult.Win, result)
     }
 
     @Test
@@ -175,41 +159,4 @@ turn 5
     fun answer2() {
         Assert.assertEquals("my answer", 1216, Day22.answer2())
     }
-
-    @Test
-    fun wtf() {
-        val root = Day22.PuzzleRootNode.children2
-        val rootSpells = root.map { it.spell }.filterNotNull()
-
-        Assert.assertTrue("one", Spell.POISON in rootSpells)
-
-        val node1: Day22.Node = root.find { it.spell == Spell.POISON } ?: throw AssertionError("one")
-        val node1spells = node1.children2.filterNotNull().map { it.spell }
-
-        Assert.assertTrue("two", Spell.DRAIN in node1spells)
-
-        val node2 = node1.children2.find { it.spell == Spell.DRAIN } ?: throw AssertionError("two")
-        val node3 = node2.children2.find { it.spell == Spell.RECHARGE } ?: throw AssertionError("three")
-
-        Day22.answer2why(node3)
-        val n3c2 = node3.children2
-        println("spells = ${n3c2.map{it.spell}} n3.c2->$n3c2 size=${n3c2.size}")
-        //val node4 = node3.children2.find { it.spell == Spell.POISON } ?: throw AssertionError("four")
-        //val node5 = node4.children2.find { it.spell == Spell.SHIELD } ?: throw AssertionError("five")
-
-    }
-    // 1242 too high
-
-    /*
-    Hard Mode
-Poison
-Drain
-Recharge
-Poison
-Shield
-Recharge
-Poison
-Magic Missile
-
-     */
 }

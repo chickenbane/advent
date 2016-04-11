@@ -1,8 +1,6 @@
 package advent
 
 import java.util.*
-import kotlin.properties.ReadWriteProperty
-import kotlin.reflect.KProperty
 
 /**
  * Created by a-jotsai on 3/29/16.
@@ -192,57 +190,9 @@ Damage: 9
             return GameResult.OnGoing(GameState(player.copy(hitPoints = hp), boss, effects))
         }
 
-        fun cast(spell: Spell, print: Boolean = false): GameResult {
-            if (print) {
-                println("-- Player turn --")
-                println(player)
-                println(boss)
-            }
-
-            val playerEffectsResult = spellEffects()
-            if (playerEffectsResult !is GameResult.OnGoing) return playerEffectsResult
-
-            if (print) println("Player casts $spell.")
-
-            val cast = spell.cast()
-            val playerCastResult = playerEffectsResult.state.playerSpell(cast)
-            if (playerCastResult !is GameResult.OnGoing) return playerCastResult
-
-            if (print) {
-                println("Player turn complete, effects: ${playerCastResult.state.effects}")
-                println("-- Boss turn --")
-                println(playerCastResult.state.player)
-                println(playerCastResult.state.boss)
-            }
-
-            val bossEffectsResult = playerCastResult.state.spellEffects()
-            if (bossEffectsResult !is GameResult.OnGoing) return bossEffectsResult
-
-            val bossTurn = bossEffectsResult.state.bossTurn()
-
-            if (print) {
-                println("Boss turn complete, effects: ${bossEffectsResult.state.effects}")
-                println()
-            }
-            return bossTurn
-        }
-
         fun castableSpells(): Set<Spell> {
             val currentEffects = effects.filter { it.turnsLeft > 1 }.map { it.spell }.toSet()
             return Spell.values().filter { it !in currentEffects && it.mana <= player.mana }.toSet()
-        }
-
-        fun nextTurns(): Map<Spell, GameResult> {
-            val nextSpells = castableSpells()
-            val nextTurns = LinkedHashMap<Spell, GameResult>()
-            if (nextSpells.isEmpty()) {
-                Spell.values().forEach { nextTurns.put(it, GameResult.Lose) }
-            } else {
-                nextSpells.forEach {
-                    nextTurns.put(it, cast(it))
-                }
-            }
-            return nextTurns
         }
     }
 
@@ -265,52 +215,26 @@ Damage: 9
         }
     }
 
-    data class Node(val result: GameResult, val manaSpent: Int, val spell: Spell? = null) {
+    data class Node(val result: GameResult, val manaSpent: Int = 0, val spell: Spell? = null) {
         val win: Boolean = result is GameResult.Win
         val notLoss: Boolean = result !is GameResult.Lose
 
-        val next: Map<Spell, GameResult> by lazy {
-            if (result is GameResult.OnGoing) {
-                result.state.nextTurns()
-            } else {
-                emptyMap()
-            }
-        }
-        val children: Set<Node> by lazy {
-            LinkedHashSet<Node>().apply {
-                for ((s, r) in next) {
-                    add(withParent(r, s))
-                }
-            }
-        }
-        val children2: List<Node> by lazy {
-            val list = LinkedList<Node>()
-            if (result is GameResult.OnGoing) {
-                val map = nextTurns2(result.state)
-                for ((s, r) in map) {
-                    list.add(withParent(r, s))
-                }
-            }
-            list
-        }
+        // can't seem to figure out how to pass ::cast or ::castPart2 for children2
+        val children: Set<Node> by lazy { createChildren { state, spell -> cast(state, spell) } }
+        val children2: Set<Node> by lazy { createChildren { state, spell -> castPart2(state, spell) } }
 
-        //var parent: Node by notNullOnce<Node>()
-        var parent: Node? = null
-        fun withParent(childResult: GameResult, spell: Spell): Node {
-            val node = Node(childResult, manaSpent + spell.mana, spell)
-            node.parent = this
-            return node
-        }
-        val spells: List<Spell> by lazy {
-            val list = LinkedList<Spell>()
-            var node: Node = this
-            while (node.parent != null && node.parent != PuzzleRootNode) {
-                if (node.spell != null) list.addFirst(node.spell)
-                node = node.parent!!
+        private fun createChildren(castSpell: (GameState, Spell) -> GameResult): Set<Node> {
+            if (result !is GameResult.OnGoing) return emptySet()
+            val nextSpells = result.state.castableSpells()
+            val list = LinkedHashSet<Node>()
+            nextSpells.forEach {
+                val r = castSpell(result.state, it)
+                list.add(Node(r, manaSpent + it.mana, it))
             }
-            list
+            return list
         }
     }
+
 
     val PuzzleStartState = GameState(Player(50, 500), Boss(51, 9), emptySet())
     val PuzzleRootNode = Node(GameResult.OnGoing(PuzzleStartState), 0)
@@ -342,130 +266,61 @@ With the same starting stats for you and the boss, what is the least amount of m
     """
 
 
-    fun cast2(state: GameState, spell: Spell): GameResult {
+    fun castPart2(state: GameState, spell: Spell): GameResult {
         val hp = state.player.hitPoints - 1
         if (hp <= 0) return GameResult.Lose
-        val part2result = GameResult.OnGoing(GameState(state.player.copy(hitPoints = hp), state.boss, state.effects))
+        val part2state = GameState(state.player.copy(hitPoints = hp), state.boss, state.effects)
+        return cast(part2state, spell)
+    }
 
-        val playerEffectsResult = part2result.state.spellEffects()
+    fun cast(state: GameState, spell: Spell, print: Boolean = false): GameResult {
+        if (print) {
+            println("-- Player turn --")
+            println(state.player)
+            println(state.boss)
+        }
+
+        val playerEffectsResult = state.spellEffects()
         if (playerEffectsResult !is GameResult.OnGoing) return playerEffectsResult
+
+        if (print) println("Player casts $spell.")
 
         val cast = spell.cast()
         val playerCastResult = playerEffectsResult.state.playerSpell(cast)
         if (playerCastResult !is GameResult.OnGoing) return playerCastResult
 
+        if (print) {
+            println("Player turn complete, effects: ${playerCastResult.state.effects}")
+            println("-- Boss turn --")
+            println(playerCastResult.state.player)
+            println(playerCastResult.state.boss)
+        }
+
         val bossEffectsResult = playerCastResult.state.spellEffects()
         if (bossEffectsResult !is GameResult.OnGoing) return bossEffectsResult
 
+        if (print) {
+            println("Boss turn complete, effects: ${bossEffectsResult.state.effects}")
+            println()
+        }
+
         return bossEffectsResult.state.bossTurn()
-    }
-
-    fun nextTurns2(state: GameState): Map<Spell, GameResult> = LinkedHashMap<Spell, GameResult>().apply {
-        state.castableSpells().forEach {
-            put(it, cast2(state, it))
-        }
-    }
-
-    fun cast2(state: GameState, spells: List<Spell>): GameResult {
-        var result: GameResult = GameResult.OnGoing(state)
-        println("spells cost: ${spells.map{it.mana}.sum()}")
-        for (s in spells) {
-            if (result !is GameResult.OnGoing) return result
-            println("spell: $s ${result.state}")
-            result = cast2(result.state, s)
-        }
-        return result
     }
 
     fun answer2(): Int {
         val queue = LinkedList<Node>()
         queue.add(PuzzleRootNode)
-        var min = 1243
-        var nodes = 0
-        var wins = 0
-        var losses = 0
         while (queue.isNotEmpty()) {
-            val node = queue.removeFirst()
+            val node = queue.minBy { it.manaSpent }!!
+            val removed = queue.remove(node)
+            require(removed)
             if (node.win) {
-                if (node.manaSpent < min) {
-                    min = node.manaSpent
-                }
-                wins += 1
+                return node.manaSpent
             } else {
-                if (node.result is GameResult.Lose) losses += 1
-                queue.addAll(node.children2)
+                queue.addAll(node.children2.filter { it.notLoss })
             }
-            nodes += 1
         }
-        println("nodes inspected=$nodes wins = $wins losses = $losses")
-        return min
+        throw IllegalStateException("no wins found?")
     }
-
-    private val Ugh = listOf(
-            Spell.POISON,
-            Spell.DRAIN,
-            Spell.RECHARGE,
-            Spell.POISON,
-            Spell.SHIELD,
-            Spell.RECHARGE,
-            Spell.POISON,
-            Spell.MISSILE
-    )
-
-    fun answer2why(node3: Node): Unit {
-        // why is poison not here?!
-        val state: GameState = if (node3.result is GameResult.OnGoing) node3.result.state else throw IllegalStateException("wha")
-        println("effects = ${state.effects}")
-        println("castable spells = ${state.castableSpells()}")
-        println("next spells = ${state.nextTurns()}")
-        println("my state = $state")
-    }
-
-    fun answer2wtf(): Int {
-        val queue = LinkedList<Node>()
-        queue.add(PuzzleRootNode)
-        var min = 1243
-        var nodes = 0
-        var wins = 0
-        var losses = 0
-        while (queue.isNotEmpty()) {
-            val node = queue.removeFirst()
-            if (node.win) {
-                if (node.manaSpent < min) {
-                    min = node.manaSpent
-                }
-                wins += 1
-            } else {
-                if (node.result is GameResult.Lose) losses += 1
-                queue.addAll(node.children2)
-            }
-            if (node.spells == Ugh) {
-                throw IllegalStateException("WHY?!")
-            } else {
-                if (node.spells.size == Ugh.size && node.spells.first() == Spell.POISON && node.spells.last() == Spell.MISSILE) {
-                    println("UGH> ${node.spells}")
-                }
-            }
-            nodes += 1
-        }
-        println("nodes inspected=$nodes wins = $wins losses = $losses")
-        return min
-    }
-
-    // Just like Delegates.notNull(), but also throws if the var is set more than once
-    fun <T: Any> notNullOnce(): ReadWriteProperty<Any?, T> = NotNullVarOnce()
-    private class NotNullVarOnce<T: Any>() : ReadWriteProperty<Any?, T> {
-        private var value: T? = null
-
-        override fun getValue(thisRef: Any?, property: KProperty<*>): T {
-            return value ?: throw IllegalStateException("Property ${property.name} should be initialized before get.")
-        }
-
-        override fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
-            if (this.value != null) throw IllegalStateException("Property ${property.name} already set!")
-            this.value = value
-        }
-    }
-
 
 }
