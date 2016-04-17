@@ -77,14 +77,14 @@ What is the value in register b when the program in your puzzle input is finishe
 
     val puzzleInstructions: Array<Instruction> by lazy { puzzleInput.map { str2Instruction(it) }.toTypedArray() }
 
-    data class MachineState(val a: Int, val b: Int) {
+    data class MachineState(val a: Long, val b: Long) {
         init { require (a >= 0 && b >= 0) }
     }
 
-    fun evaluate(instructions: Array<Instruction>): MachineState {
+    fun evaluate(instructions: Array<Instruction>, initMachine: MachineState): MachineState {
         var currInstIdx = 0
-        var a = 0
-        var b = 0
+        var a = initMachine.a
+        var b = initMachine.b
         while (currInstIdx in instructions.indices) {
             val currInst = instructions[currInstIdx]
             var offset = 1
@@ -104,16 +104,23 @@ What is the value in register b when the program in your puzzle input is finishe
                 is Instruction.Jump -> offset = currInst.offset
                 is Instruction.JumpIfEven -> {
                     val reg = if (currInst.register == Register.a) a else b
-                    if (reg % 2 == 0) offset = currInst.offset
+                    if (reg % 2L == 0L) offset = currInst.offset
                 }
                 is Instruction.JumpIfOne -> {
                     val reg = if (currInst.register == Register.a) a else b
-                    if (reg == 1) offset = currInst.offset
+                    if (reg == 1L) offset = currInst.offset
                 }
             }
+            require (a >= 0 && b >= 0)
+            println("a = $a b = $b currIdx = $currInstIdx offset=$offset nextIdx=${currInstIdx + offset}")
             currInstIdx += offset
         }
         return MachineState(a, b)
     }
 
+    private val part2 = """
+    --- Part Two ---
+
+The unknown benefactor is very thankful for releasi-- er, helping little Jane Marie with her computer. Definitely not to distract you, what is the value in register b after the program is finished executing if register a starts as 1 instead?
+    """
 }
